@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { processPDFToChunks, generateChunkId } from "@/lib/pdf-processor";
+import {
+  processPDFToChunks,
+  generateChunkId,
+  validatePDFBuffer,
+} from "@/lib/pdf-processor-improved";
 import { generateEmbeddings } from "@/lib/gemini";
 import { upsertVectors, PdfChunk } from "@/lib/pinecone";
 
@@ -138,34 +142,73 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Process PDF into chunks with enhanced error handling
-    console.log("⚙️ Processing PDF...");
-    let processedChunks;
-    try {
-      processedChunks = await processPDFToChunks(buffer);
-      console.log("📊 Chunks created:", processedChunks.length);
-    } catch (error) {
-      console.error("❌ PDF processing failed:", error);
+    // Validate PDF buffer first
+    console.log("🔍 Validating PDF buffer...");
+    const pdfValidation = validatePDFBuffer(buffer);
+    if (!pdfValidation.isValid) {
+      console.error("❌ PDF validation failed:", pdfValidation.error);
       return NextResponse.json(
         {
-          error: "Failed to process PDF",
-          details: error instanceof Error ? error.message : "Unknown error",
-          possibleCauses: [
-            "PDF is password protected",
-            "PDF is corrupted or invalid",
-            "PDF contains only images without text",
-            "Unsupported PDF format",
-          ],
+          error: "Invalid PDF file",
+          details: pdfValidation.error,
+          hint: "Please ensure you're uploading a valid PDF file",
         },
         { status: 400, headers },
       );
     }
 
-    if (processedChunks.length === 0) {
+    // Process PDF into chunks with enhanced error handling
+    console.log("⚙️ Processing PDF with improved processor...");
+    let processedChunks;
+    try {
+      processedChunks = await processPDFToChunks(buffer);
+      console.log("📊 Chunks created:", processedChunks.length);
+
+      if (processedChunks.length === 0) {
+        throw new Error("No text content could be extracted from the PDF");
+      }
+    } catch (error) {
+      console.error("❌ PDF processing failed:", error);
+
+      // Provide more specific error messages based on error type
+      let errorMessage = "Failed to process PDF";
+      let possibleCauses = [
+        "PDF is password protected",
+        "PDF is corrupted or invalid",
+        "PDF contains only images without text",
+        "Unsupported PDF format",
+      ];
+
+      if (error instanceof Error) {
+        if (
+          error.message.includes("ENOENT") &&
+          error.message.includes("test")
+        ) {
+          errorMessage = "PDF processing library configuration issue";
+          possibleCauses = [
+            "The pdf-parse library has internal test file dependencies missing",
+            "Try reinstalling the PDF processing dependencies",
+            "This is a known issue with the pdf-parse library",
+          ];
+        } else if (error.message.includes("password")) {
+          errorMessage = "Password protected PDF";
+          possibleCauses = ["This PDF requires a password to access"];
+        } else if (error.message.includes("No text content")) {
+          errorMessage = "No extractable text found";
+          possibleCauses = [
+            "PDF contains only images or scanned content",
+            "PDF text may be embedded as images",
+            "Try using a PDF with selectable text",
+          ];
+        }
+      }
+
       return NextResponse.json(
         {
-          error: "No text content found in PDF",
-          hint: "This PDF might contain only images or be password protected",
+          error: errorMessage,
+          details: error instanceof Error ? error.message : "Unknown error",
+          possibleCauses,
+          troubleshooting: "Visit /diagnostic to run system diagnostics",
         },
         { status: 400, headers },
       );
@@ -230,19 +273,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const stats = {
+      originalFileSize: file.size,
+      processedChunks: processedChunks.length,
+      averageChunkSize: Math.round(
+        processedChunks.reduce((sum, chunk) => sum + chunk.text.length, 0) /
+          processedChunks.length,
+      ),
+      totalTextLength: processedChunks.reduce(
+        (sum, chunk) => sum + chunk.text.length,
+        0,
+      ),
+    };
+
     return NextResponse.json(
       {
         success: true,
         message: `Successfully processed PDF: ${fileName}`,
         chunksCreated: pdfChunks.length,
         fileName,
-        processingStats: {
-          originalFileSize: file.size,
-          processedChunks: processedChunks.length,
-          averageChunkSize: Math.round(
-            processedChunks.reduce((sum, chunk) => sum + chunk.text.length, 0) /
-              processedChunks.length,
-          ),
+        processingStats: stats,
+        diagnostic: {
+          hint: "If you experienced any issues, visit /diagnostic for troubleshooting",
+          processingMethod: "improved-pdf-processor",
         },
       },
       { headers },
@@ -263,13 +316,14 @@ export async function POST(req: NextRequest) {
         constructor: error.constructor.name,
       });
 
-      // Handle specific error types
+      // Enhanced error handling with more specific responses
       if (error.message.includes("fetch")) {
         return NextResponse.json(
           {
             error: "Network error occurred",
             details: error.message,
             type: "network_error",
+            troubleshooting: "Check your internet connection and API endpoints",
           },
           { status: 503, headers },
         );
@@ -281,8 +335,22 @@ export async function POST(req: NextRequest) {
             error: "Request timeout - file processing took too long",
             details: error.message,
             type: "timeout_error",
+            troubleshooting:
+              "Try uploading a smaller PDF or check server performance",
           },
           { status: 408, headers },
+        );
+      }
+
+      if (error.message.includes("quota") || error.message.includes("rate")) {
+        return NextResponse.json(
+          {
+            error: "API quota exceeded",
+            details: error.message,
+            type: "quota_error",
+            troubleshooting: "Check your Google/Pinecone API usage limits",
+          },
+          { status: 429, headers },
         );
       }
 
@@ -291,6 +359,8 @@ export async function POST(req: NextRequest) {
           error: `Failed to process PDF: ${error.message}`,
           type: "processing_error",
           errorName: error.name,
+          troubleshooting:
+            "Visit /diagnostic to run system diagnostics for detailed error analysis",
         },
         { status: 500, headers },
       );
@@ -302,6 +372,7 @@ export async function POST(req: NextRequest) {
         error: "An unexpected error occurred while processing the PDF",
         type: "unknown_error",
         details: String(error),
+        troubleshooting: "Visit /diagnostic to identify the root cause",
       },
       { status: 500, headers },
     );

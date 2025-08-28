@@ -17,15 +17,14 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
     if (DEBUG) console.log("📊 Buffer size:", buffer.length);
 
-    // Use dynamic import with proper error handling for pdf-parse
+    // Use createRequire to get CommonJS require in ES module environment
     let pdfParse;
     try {
-      const pdfModule = await import("pdf-parse");
-      pdfParse = pdfModule.default;
+      const { createRequire } = await import("module");
+      const require = createRequire(import.meta.url);
+      pdfParse = require("pdf-parse");
 
-      if (typeof pdfParse !== "function") {
-        throw new Error("pdf-parse module is not a function");
-      }
+      if (DEBUG) console.log("✅ Using CommonJS require via createRequire");
     } catch (importError) {
       if (DEBUG) console.error("❌ Failed to import pdf-parse:", importError);
       throw new Error(
@@ -35,11 +34,7 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
     let data;
     try {
-      data = await pdfParse(buffer, {
-        // Add options to prevent test file access
-        normalizeWhitespace: false,
-        disableCombineTextItems: false,
-      });
+      data = await pdfParse(buffer);
     } catch (parseError) {
       if (DEBUG) console.error("❌ PDF parsing failed:", parseError);
 

@@ -8,12 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "init-pinecone": "node scripts/init-pinecone.js",
+    "setup-env": "node scripts/setup-env.js",
+    "diagnostic": "node scripts/diagnostic.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@pinecone-database/pinecone": "^6.1.2",
     "@types/pdf-parse": "^1.1.5",
+    "autoprefixer": "^10.4.21",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
     "next-auth": "^4.24.11",
@@ -23,14 +26,13 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^16.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "tailwindcss": "^4",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }
 }
