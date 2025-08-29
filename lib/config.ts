@@ -1,6 +1,6 @@
 // Configuration constants for PDF Genius application
 export const APP_CONFIG = {
-  // File upload limits
+  // File upload limit
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB in bytes
   ALLOWED_FILE_TYPES: ["application/pdf"],
   ALLOWED_FILE_EXTENSIONS: [".pdf"],
