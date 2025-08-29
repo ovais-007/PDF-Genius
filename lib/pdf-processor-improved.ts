@@ -18,6 +18,8 @@ export interface PDFExtractionResult {
  * Improved PDF text extraction with multiple fallback strategies
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+
+  console.log("ovais from improved pdf-processor-improved")
   try {
     if (DEBUG) console.log("📖 Starting improved PDF text extraction...");
 
