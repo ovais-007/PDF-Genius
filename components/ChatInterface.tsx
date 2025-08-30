@@ -113,14 +113,11 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[600px]">
+    <div className="flex flex-col h-full max-h-[650px]">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-blue-600" />
-            </div>
             <p className="text-xl font-semibold text-gray-900 mb-2">
               Ready to help!
             </p>
@@ -139,15 +136,15 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
                 }`}
               >
                 {message.type === "assistant" && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                    <Bot className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-full  flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Bot className="w-5 h-5 text-gray-700" />
                   </div>
                 )}
 
                 <div
                   className={`max-w-[75%] rounded-2xl px-6 py-4 ${
                     message.type === "user"
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                      ? " text-black shadow-md"
                       : "bg-white border border-gray-200 text-gray-800 shadow-sm"
                   }`}
                 >
@@ -196,8 +193,8 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
                 </div>
 
                 {message.type === "user" && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center flex-shrink-0 shadow-md">
-                    <User className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-full  flex items-center justify-center flex-shrink-0 shadow-md">
+                    <User className="w-5 h-5 text-gray-700" />
                   </div>
                 )}
               </div>
@@ -205,8 +202,8 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
 
             {isLoading && (
               <div className="flex gap-4 justify-start">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                  <Bot className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-full  flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Bot className="w-5 h-5 text-gray-700" />
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4 flex items-center gap-3 shadow-sm">
                   <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
@@ -224,7 +221,7 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="p-6 border-t border-gray-100 bg-white"
+        className="p-3 border-t border-gray-100 bg-white"
       >
         <div className="flex gap-3">
           <input
@@ -239,7 +236,7 @@ export default function ChatInterface({ onError }: ChatInterfaceProps) {
           <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-300 font-semibold shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none"
+            className="px-6 py-3 text-gray-700 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-300 font-semibold shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
