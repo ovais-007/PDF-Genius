@@ -12,6 +12,9 @@
     "diagnostic": "node scripts/diagnostic.js",
     "type-check": "tsc --noEmit"
   },
+  "engines": {
+    "node": "24.x"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@pinecone-database/pinecone": "^6.1.2",
