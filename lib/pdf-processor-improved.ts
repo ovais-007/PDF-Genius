@@ -1,6 +1,6 @@
 import * as parser from "pdf-parse/lib/pdf-parse.js";
 
-const DEBUG = true; // Force debug on Vercel
+const DEBUG = process.env.NODE_ENV === "development";
 
 export interface ProcessedChunk {
   text: string;
@@ -67,9 +67,8 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   }
 }
 
-/**
- * Enhanced text cleaning with better handling
- */
+
+// text cleaning with better handli
 export function cleanText(text: string): string {
   if (!text || typeof text !== "string") {
     return "";
@@ -91,9 +90,8 @@ export function cleanText(text: string): string {
   );
 }
 
-/**
- * Improved text chunking with better sentence boundary detection
- */
+
+//text chunking with better sentence boundary detection
 export function splitTextIntoChunks(
   text: string,
   chunkSize: number = 1000,
