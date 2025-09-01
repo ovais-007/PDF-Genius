@@ -1,6 +1,6 @@
-import { createRequire } from 'module';
+import { createRequire } from "module";
 
-const DEBUG = process.env.NODE_ENV === "development";
+const DEBUG = true; // Force debug on Vercel
 
 export interface ProcessedChunk {
   text: string;
@@ -18,8 +18,7 @@ export interface PDFExtractionResult {
  * Improved PDF text extraction with multiple fallback strategies
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-
-  console.log("ovais from improved pdf-processor-improved")
+  console.log("ovais from improved pdf-processor-improved");
   try {
     if (DEBUG) console.log("📖 Starting improved PDF text extraction...");
 
@@ -30,8 +29,8 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     if (DEBUG) console.log("📊 Buffer size:", buffer.length, "bytes");
 
     // Validate PDF header
-    const pdfHeader = buffer.toString('ascii', 0, 4);
-    if (pdfHeader !== '%PDF') {
+    const pdfHeader = buffer.toString("ascii", 0, 4);
+    if (pdfHeader !== "%PDF") {
       throw new Error("Invalid PDF file: Missing PDF header");
     }
 
@@ -39,27 +38,35 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
       const result = await extractWithPdfParse(buffer);
       if (result && result.text && result.text.trim().length > 0) {
-        if (DEBUG) console.log("✅ Successfully extracted text using pdf-parse");
+        if (DEBUG)
+          console.log("✅ Successfully extracted text using pdf-parse");
         return result.text;
       }
     } catch (pdfParseError) {
-      if (DEBUG) console.warn("⚠️ pdf-parse failed, trying fallback:", pdfParseError);
+      if (DEBUG)
+        console.warn("⚠️ pdf-parse failed, trying fallback:", pdfParseError);
 
       // Check if it's the known ENOENT test file issue
-      if (pdfParseError instanceof Error &&
-          pdfParseError.message.includes('ENOENT') &&
-          pdfParseError.message.includes('test')) {
-        console.log("🔄 Detected pdf-parse test file issue, using workaround...");
+      if (
+        pdfParseError instanceof Error &&
+        pdfParseError.message.includes("ENOENT") &&
+        pdfParseError.message.includes("test")
+      ) {
+        console.log(
+          "🔄 Detected pdf-parse test file issue, using workaround...",
+        );
 
         // Try the workaround approach
         try {
           const workaroundResult = await extractWithWorkaround(buffer);
           if (workaroundResult && workaroundResult.trim().length > 0) {
-            if (DEBUG) console.log("✅ Successfully extracted text using workaround");
+            if (DEBUG)
+              console.log("✅ Successfully extracted text using workaround");
             return workaroundResult;
           }
         } catch (workaroundError) {
-          if (DEBUG) console.warn("⚠️ Workaround also failed:", workaroundError);
+          if (DEBUG)
+            console.warn("⚠️ Workaround also failed:", workaroundError);
         }
       }
     }
@@ -68,7 +75,8 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
       const basicResult = await extractBasicText(buffer);
       if (basicResult && basicResult.trim().length > 0) {
-        if (DEBUG) console.log("✅ Successfully extracted text using basic extraction");
+        if (DEBUG)
+          console.log("✅ Successfully extracted text using basic extraction");
         return basicResult;
       }
     } catch (basicError) {
@@ -78,9 +86,8 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     // If all strategies fail
     throw new Error(
       "Failed to extract text from PDF using all available methods. " +
-      "The PDF might be password protected, corrupted, or contain only images."
+        "The PDF might be password protected, corrupted, or contain only images.",
     );
-
   } catch (error) {
     if (DEBUG) console.error("❌ PDF extraction error:", error);
 
@@ -96,12 +103,14 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 /**
  * Extract text using pdf-parse with improved error handling
  */
-async function extractWithPdfParse(buffer: Buffer): Promise<PDFExtractionResult> {
+async function extractWithPdfParse(
+  buffer: Buffer,
+): Promise<PDFExtractionResult> {
   const require = createRequire(import.meta.url);
 
   try {
     // Import pdf-parse
-    const pdfParse = require('pdf-parse');
+    const pdfParse = require("pdf-parse");
 
     // Create a clean buffer copy to avoid potential issues
     const cleanBuffer = Buffer.from(buffer);
@@ -122,11 +131,10 @@ async function extractWithPdfParse(buffer: Buffer): Promise<PDFExtractionResult>
     }
 
     return {
-      text: data.text || '',
+      text: data.text || "",
       numPages: data.numpages,
-      metadata: data.info
+      metadata: data.info,
     };
-
   } catch (error) {
     if (DEBUG) console.error("❌ pdf-parse extraction failed:", error);
     throw error;
@@ -144,18 +152,17 @@ async function extractWithWorkaround(buffer: Buffer): Promise<string> {
     const originalCwd = process.cwd();
 
     // Temporarily change working directory to avoid test file lookups
-    const tempDir = require('os').tmpdir();
+    const tempDir = require("os").tmpdir();
     process.chdir(tempDir);
 
     try {
-      const pdfParse = require('pdf-parse');
+      const pdfParse = require("pdf-parse");
       const result = await pdfParse(buffer);
-      return result.text || '';
+      return result.text || "";
     } finally {
       // Always restore original working directory
       process.chdir(originalCwd);
     }
-
   } catch (error) {
     if (DEBUG) console.error("❌ Workaround extraction failed:", error);
     throw error;
@@ -168,28 +175,31 @@ async function extractWithWorkaround(buffer: Buffer): Promise<string> {
 async function extractBasicText(buffer: Buffer): Promise<string> {
   try {
     // This is a very basic approach - convert buffer to string and look for text patterns
-    const pdfString = buffer.toString('binary');
+    const pdfString = buffer.toString("binary");
 
     // Look for text between stream objects (very basic PDF parsing)
-    const textMatches = pdfString.match(/stream\s*([\s\S]*?)\s*endstream/g) || [];
+    const textMatches =
+      pdfString.match(/stream\s*([\s\S]*?)\s*endstream/g) || [];
 
-    let extractedText = '';
+    let extractedText = "";
 
     for (const match of textMatches) {
       // Remove stream markers
-      const content = match.replace(/^stream\s*/, '').replace(/\s*endstream$/, '');
+      const content = match
+        .replace(/^stream\s*/, "")
+        .replace(/\s*endstream$/, "");
 
       // Look for readable text (basic heuristic)
       const readableText = content.match(/[a-zA-Z0-9\s.,!?;:"'-]+/g);
       if (readableText) {
-        extractedText += readableText.join(' ') + ' ';
+        extractedText += readableText.join(" ") + " ";
       }
     }
 
     // Clean up the extracted text
     extractedText = extractedText
-      .replace(/\s+/g, ' ')
-      .replace(/[^\w\s.,!?;:"'-]/g, '')
+      .replace(/\s+/g, " ")
+      .replace(/[^\w\s.,!?;:"'-]/g, "")
       .trim();
 
     if (extractedText.length < 50) {
@@ -197,7 +207,6 @@ async function extractBasicText(buffer: Buffer): Promise<string> {
     }
 
     return extractedText;
-
   } catch (error) {
     if (DEBUG) console.error("❌ Basic extraction failed:", error);
     throw error;
@@ -208,22 +217,24 @@ async function extractBasicText(buffer: Buffer): Promise<string> {
  * Enhanced text cleaning with better handling
  */
 export function cleanText(text: string): string {
-  if (!text || typeof text !== 'string') {
-    return '';
+  if (!text || typeof text !== "string") {
+    return "";
   }
 
-  return text
-    // Normalize whitespace
-    .replace(/\s+/g, ' ')
-    // Remove control characters except newlines and tabs
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Normalize line breaks
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    // Remove excessive newlines
-    .replace(/\n{3,}/g, '\n\n')
-    // Trim
-    .trim();
+  return (
+    text
+      // Normalize whitespace
+      .replace(/\s+/g, " ")
+      // Remove control characters except newlines and tabs
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+      // Normalize line breaks
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      // Remove excessive newlines
+      .replace(/\n{3,}/g, "\n\n")
+      // Trim
+      .trim()
+  );
 }
 
 /**
@@ -241,7 +252,9 @@ export function splitTextIntoChunks(
   const chunks: ProcessedChunk[] = [];
 
   // Better sentence splitting that handles abbreviations
-  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z])/).filter((s) => s.trim().length > 0);
+  const sentences = text
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .filter((s) => s.trim().length > 0);
 
   let currentChunk = "";
   let currentChunkIndex = 0;
@@ -256,7 +269,10 @@ export function splitTextIntoChunks(
     if (!sentence) continue;
 
     // Check if adding this sentence would exceed chunk size
-    if (currentChunk.length + sentence.length + 1 > chunkSize && currentChunk.length > 0) {
+    if (
+      currentChunk.length + sentence.length + 1 > chunkSize &&
+      currentChunk.length > 0
+    ) {
       // Save current chunk
       chunks.push({
         text: currentChunk.trim(),
@@ -267,18 +283,23 @@ export function splitTextIntoChunks(
       // Create overlap for new chunk
       const words = currentChunk.split(/\s+/);
       const overlapWords = Math.min(Math.floor(overlap / 6), words.length);
-      const overlapText = words.slice(-overlapWords).join(' ');
+      const overlapText = words.slice(-overlapWords).join(" ");
 
-      currentChunk = overlapText ? overlapText + ' ' + sentence : sentence;
+      currentChunk = overlapText ? overlapText + " " + sentence : sentence;
       currentChunkIndex++;
     } else {
       // Add sentence to current chunk
-      currentChunk += (currentChunk ? ' ' : '') + sentence;
+      currentChunk += (currentChunk ? " " : "") + sentence;
     }
 
     // Update page number estimation
-    const totalCharsProcessed = chunks.reduce((sum, chunk) => sum + chunk.text.length, 0) + currentChunk.length;
-    currentPageNumber = Math.max(1, Math.ceil(totalCharsProcessed / avgCharsPerPage));
+    const totalCharsProcessed =
+      chunks.reduce((sum, chunk) => sum + chunk.text.length, 0) +
+      currentChunk.length;
+    currentPageNumber = Math.max(
+      1,
+      Math.ceil(totalCharsProcessed / avgCharsPerPage),
+    );
   }
 
   // Add the last chunk if it has content
@@ -342,7 +363,9 @@ export async function processPDFToChunks(
     }
 
     // Validate chunks
-    const validChunks = chunks.filter(chunk => chunk.text && chunk.text.trim().length > 0);
+    const validChunks = chunks.filter(
+      (chunk) => chunk.text && chunk.text.trim().length > 0,
+    );
 
     if (validChunks.length === 0) {
       throw new Error("All created chunks are empty");
@@ -351,27 +374,37 @@ export async function processPDFToChunks(
     if (DEBUG) {
       console.log("📊 Chunk statistics:", {
         totalChunks: validChunks.length,
-        avgChunkSize: Math.round(validChunks.reduce((sum, chunk) => sum + chunk.text.length, 0) / validChunks.length),
-        minChunkSize: Math.min(...validChunks.map(chunk => chunk.text.length)),
-        maxChunkSize: Math.max(...validChunks.map(chunk => chunk.text.length)),
+        avgChunkSize: Math.round(
+          validChunks.reduce((sum, chunk) => sum + chunk.text.length, 0) /
+            validChunks.length,
+        ),
+        minChunkSize: Math.min(
+          ...validChunks.map((chunk) => chunk.text.length),
+        ),
+        maxChunkSize: Math.max(
+          ...validChunks.map((chunk) => chunk.text.length),
+        ),
       });
     }
 
     return validChunks;
-
   } catch (error) {
     if (DEBUG) console.error("❌ Processing error:", error);
 
     if (error instanceof Error) {
       // Provide more specific error messages
-      if (error.message.includes('Invalid PDF')) {
+      if (error.message.includes("Invalid PDF")) {
         throw new Error("The uploaded file is not a valid PDF document");
       }
-      if (error.message.includes('password')) {
-        throw new Error("This PDF is password protected and cannot be processed");
+      if (error.message.includes("password")) {
+        throw new Error(
+          "This PDF is password protected and cannot be processed",
+        );
       }
-      if (error.message.includes('ENOENT')) {
-        throw new Error("PDF processing library configuration issue. Please try again or contact support.");
+      if (error.message.includes("ENOENT")) {
+        throw new Error(
+          "PDF processing library configuration issue. Please try again or contact support.",
+        );
       }
 
       throw error;
@@ -397,7 +430,10 @@ export function generateChunkId(
 /**
  * Validate PDF buffer
  */
-export function validatePDFBuffer(buffer: Buffer): { isValid: boolean; error?: string } {
+export function validatePDFBuffer(buffer: Buffer): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!buffer || buffer.length === 0) {
     return { isValid: false, error: "Empty or invalid buffer" };
   }
@@ -406,8 +442,8 @@ export function validatePDFBuffer(buffer: Buffer): { isValid: boolean; error?: s
     return { isValid: false, error: "File too small to be a valid PDF" };
   }
 
-  const header = buffer.toString('ascii', 0, 4);
-  if (header !== '%PDF') {
+  const header = buffer.toString("ascii", 0, 4);
+  if (header !== "%PDF") {
     return { isValid: false, error: "Invalid PDF file format" };
   }
 
