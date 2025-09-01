@@ -1,4 +1,4 @@
-import { createRequire } from "module";
+import * as parser from "pdf-parse/lib/pdf-parse.js";
 
 const DEBUG = true; // Force debug on Vercel
 
@@ -15,12 +15,13 @@ export interface PDFExtractionResult {
 }
 
 /**
- * Improved PDF text extraction with multiple fallback strategies
+ * PDF text extraction using a direct import of the pdf-parse library.
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   console.log("ovais from improved pdf-processor-improved");
   try {
-    if (DEBUG) console.log("📖 Starting improved PDF text extraction...");
+    if (DEBUG)
+      console.log("📖 Starting PDF text extraction with direct import...");
 
     if (!buffer || buffer.length === 0) {
       throw new Error("Invalid or empty PDF buffer");
@@ -34,59 +35,25 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
       throw new Error("Invalid PDF file: Missing PDF header");
     }
 
-    // Strategy 1: Try pdf-parse with improved error handling
+    // Use the direct import strategy
     try {
-      const result = await extractWithPdfParse(buffer);
-      if (result && result.text && result.text.trim().length > 0) {
+      const data = await parser.default(buffer);
+      if (data && data.text && data.text.trim().length > 0) {
         if (DEBUG)
-          console.log("✅ Successfully extracted text using pdf-parse");
-        return result.text;
+          console.log(
+            "✅ Successfully extracted text using direct import of pdf-parse",
+          );
+        return data.text;
       }
-    } catch (pdfParseError) {
-      if (DEBUG)
-        console.warn("⚠️ pdf-parse failed, trying fallback:", pdfParseError);
-
-      // Check if it's the known ENOENT test file issue
-      if (
-        pdfParseError instanceof Error &&
-        pdfParseError.message.includes("ENOENT") &&
-        pdfParseError.message.includes("test")
-      ) {
-        console.log(
-          "🔄 Detected pdf-parse test file issue, using workaround...",
-        );
-
-        // Try the workaround approach
-        try {
-          const workaroundResult = await extractWithWorkaround(buffer);
-          if (workaroundResult && workaroundResult.trim().length > 0) {
-            if (DEBUG)
-              console.log("✅ Successfully extracted text using workaround");
-            return workaroundResult;
-          }
-        } catch (workaroundError) {
-          if (DEBUG)
-            console.warn("⚠️ Workaround also failed:", workaroundError);
-        }
-      }
+    } catch (error) {
+      if (DEBUG) console.warn("⚠️ Direct import of pdf-parse failed:", error);
+      // Re-throw the error to be handled by the main catch block
+      throw error;
     }
 
-    // Strategy 2: Try basic text extraction fallback
-    try {
-      const basicResult = await extractBasicText(buffer);
-      if (basicResult && basicResult.trim().length > 0) {
-        if (DEBUG)
-          console.log("✅ Successfully extracted text using basic extraction");
-        return basicResult;
-      }
-    } catch (basicError) {
-      if (DEBUG) console.warn("⚠️ Basic extraction failed:", basicError);
-    }
-
-    // If all strategies fail
+    // If the strategy fails or returns no text
     throw new Error(
-      "Failed to extract text from PDF using all available methods. " +
-        "The PDF might be password protected, corrupted, or contain only images.",
+      "Failed to extract text from PDF. The file might be password protected, corrupted, or contain only images.",
     );
   } catch (error) {
     if (DEBUG) console.error("❌ PDF extraction error:", error);
@@ -97,119 +64,6 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     }
 
     throw new Error("Unknown error occurred during PDF text extraction");
-  }
-}
-
-/**
- * Extract text using pdf-parse with improved error handling
- */
-async function extractWithPdfParse(
-  buffer: Buffer,
-): Promise<PDFExtractionResult> {
-  const require = createRequire(import.meta.url);
-
-  try {
-    // Import pdf-parse
-    const pdfParse = require("pdf-parse");
-
-    // Create a clean buffer copy to avoid potential issues
-    const cleanBuffer = Buffer.from(buffer);
-
-    // Parse with options to handle problematic PDFs
-    const data = await pdfParse(cleanBuffer, {
-      // Disable external resources that might cause ENOENT errors
-      normalizeWhitespace: false,
-      disableCombineTextItems: false,
-    });
-
-    if (DEBUG) {
-      console.log("📄 PDF parse results:", {
-        pages: data.numpages,
-        textLength: data.text?.length || 0,
-        hasInfo: !!data.info,
-      });
-    }
-
-    return {
-      text: data.text || "",
-      numPages: data.numpages,
-      metadata: data.info,
-    };
-  } catch (error) {
-    if (DEBUG) console.error("❌ pdf-parse extraction failed:", error);
-    throw error;
-  }
-}
-
-/**
- * Workaround for pdf-parse ENOENT issues
- */
-async function extractWithWorkaround(buffer: Buffer): Promise<string> {
-  const require = createRequire(import.meta.url);
-
-  try {
-    // Try to isolate pdf-parse from its test dependencies
-    const originalCwd = process.cwd();
-
-    // Temporarily change working directory to avoid test file lookups
-    const tempDir = require("os").tmpdir();
-    process.chdir(tempDir);
-
-    try {
-      const pdfParse = require("pdf-parse");
-      const result = await pdfParse(buffer);
-      return result.text || "";
-    } finally {
-      // Always restore original working directory
-      process.chdir(originalCwd);
-    }
-  } catch (error) {
-    if (DEBUG) console.error("❌ Workaround extraction failed:", error);
-    throw error;
-  }
-}
-
-/**
- * Basic text extraction fallback (limited functionality)
- */
-async function extractBasicText(buffer: Buffer): Promise<string> {
-  try {
-    // This is a very basic approach - convert buffer to string and look for text patterns
-    const pdfString = buffer.toString("binary");
-
-    // Look for text between stream objects (very basic PDF parsing)
-    const textMatches =
-      pdfString.match(/stream\s*([\s\S]*?)\s*endstream/g) || [];
-
-    let extractedText = "";
-
-    for (const match of textMatches) {
-      // Remove stream markers
-      const content = match
-        .replace(/^stream\s*/, "")
-        .replace(/\s*endstream$/, "");
-
-      // Look for readable text (basic heuristic)
-      const readableText = content.match(/[a-zA-Z0-9\s.,!?;:"'-]+/g);
-      if (readableText) {
-        extractedText += readableText.join(" ") + " ";
-      }
-    }
-
-    // Clean up the extracted text
-    extractedText = extractedText
-      .replace(/\s+/g, " ")
-      .replace(/[^\w\s.,!?;:"'-]/g, "")
-      .trim();
-
-    if (extractedText.length < 50) {
-      throw new Error("Insufficient text extracted using basic method");
-    }
-
-    return extractedText;
-  } catch (error) {
-    if (DEBUG) console.error("❌ Basic extraction failed:", error);
-    throw error;
   }
 }
 
