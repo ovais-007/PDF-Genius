@@ -21,7 +21,9 @@ import CloseIcon from "@/components/icons/CloseIcon";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 
 export default function Home() {
+  
   const { data: session, status } = useSession();
+
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"manage" | "chat">("manage");
@@ -36,6 +38,7 @@ export default function Home() {
 
   const fetchUserFiles = async () => {
     try {
+      // api is protected
       const response = await fetch("/api/files");
       if (response.ok) {
         const data = await response.json();
