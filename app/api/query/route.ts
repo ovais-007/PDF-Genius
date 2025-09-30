@@ -74,9 +74,27 @@ export async function POST(req: NextRequest) {
     console.error('Error processing query:', error);
 
     if (error instanceof Error) {
+      // Handle specific error cases with user-friendly messages
+      let errorMessage = error.message;
+      let statusCode = 500;
+      
+      if (error.message.includes('overloaded')) {
+        errorMessage = 'The AI service is currently experiencing high demand. Please try again in a few moments.';
+        statusCode = 503;
+      } else if (error.message.includes('Rate limit exceeded')) {
+        errorMessage = 'Too many requests. Please wait a moment before trying again.';
+        statusCode = 429;
+      } else if (error.message.includes('API key not valid')) {
+        errorMessage = 'Configuration error. Please contact support.';
+        statusCode = 500;
+      } else if (error.message.includes('Failed to generate response')) {
+        errorMessage = 'Unable to generate a response at this time. Please try again.';
+        statusCode = 500;
+      }
+      
       return NextResponse.json(
-        { error: `Failed to process query: ${error.message}` },
-        { status: 500 }
+        { error: errorMessage },
+        { status: statusCode }
       );
     }
 
